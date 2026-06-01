@@ -1,0 +1,31 @@
+<!--
+  acl.conf.xml 补充片段
+  放置路径：/etc/freeswitch/autoload_configs/acl.conf.xml
+
+  如果已有此文件，将 <list> 段合并进 <network_lists> 节点即可
+-->
+
+<configuration name="acl.conf" description="ACL配置">
+  <network_lists>
+
+    <!--
+      aidialer-acl：外呼服务商 FreeSWITCH 的出口 IP 白名单
+      对应 inbound-masked.xml 里 apply-inbound-acl 的值
+
+      !! 将下面的 IP 改为外呼服务商实际出口 IP !!
+      支持单 IP（/32）或 CIDR 段
+    -->
+    <list name="aidialer-acl" default="deny">
+      <node type="allow" cidr="外呼服务商IP_1/32"/>
+      <!-- <node type="allow" cidr="外呼服务商IP_2/32"/> -->
+      <!-- <node type="allow" cidr="外呼服务商IP段/24"/> -->
+    </list>
+
+    <!--
+      mask-service-acl：限制只有本机（FreeSWITCH/Lua）能访问映射服务
+      这是网络层保障，映射服务自身还有 API Key 二次校验
+      （此条目供参考，实际由防火墙规则保障，不由 FS ACL 处理）
+    -->
+
+  </network_lists>
+</configuration>

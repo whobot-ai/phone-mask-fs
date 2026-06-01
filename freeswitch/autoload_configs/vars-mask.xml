@@ -1,0 +1,34 @@
+<!--
+  vars-mask.xml 补充片段
+  放置路径：/etc/freeswitch/vars.xml（追加到末尾）
+  或单独放 /etc/freeswitch/vars-mask.xml 后在 vars.xml 末尾 include
+
+  作用：将系统环境变量注入为 FreeSWITCH 全局变量
+  FreeSWITCH 启动时读取，Lua 脚本通过 os.getenv() 读取环境变量
+  dialplan 通过 $${VAR} 读取全局变量
+-->
+
+<include>
+
+  <!--
+    映射服务地址
+    默认本机，如映射服务部署在其他机器则修改
+  -->
+  <X-PRE-PROCESS cmd="exec-set" data="MASK_SERVICE_URL=echo -n ${MASK_SERVICE_URL:-http://127.0.0.1:8080}"/>
+
+  <!--
+    网关鉴权 Key
+    !! 必须与映射服务 .env 里的 GATEWAY_API_KEY 一致 !!
+    推荐通过环境变量注入，不要硬编码在此文件里
+    启动 FreeSWITCH 前 export GATEWAY_API_KEY=你的key
+  -->
+  <X-PRE-PROCESS cmd="exec-set" data="GATEWAY_API_KEY=echo -n ${GATEWAY_API_KEY}"/>
+
+  <!--
+    线路商配置（对应 sofia-carrier.xml 里的 gateway 参数）
+  -->
+  <X-PRE-PROCESS cmd="exec-set" data="CARRIER_HOST=echo -n ${CARRIER_HOST:-sip.carrier.com}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="CARRIER_USERNAME=echo -n ${CARRIER_USERNAME}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="CARRIER_PASSWORD=echo -n ${CARRIER_PASSWORD}"/>
+
+</include>

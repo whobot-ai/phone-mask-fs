@@ -1,0 +1,59 @@
+<!--
+  sofia-carrier.xml
+  内容：
+    1. ACL 白名单定义（外呼服务商 IP）
+    2. 线路商 Gateway 定义
+
+  放置路径：/etc/freeswitch/autoload_configs/sofia-carrier.xml
+  然后在 sofia.conf.xml 的 <profiles> 里 include 本文件
+
+  或者直接将本文件内容合并进 sofia.conf.xml
+-->
+
+<configuration name="sofia.conf" description="sofia配置补充">
+
+  <global_settings>
+    <param name="log-level" value="0"/>
+    <param name="tracelevel" value="WARNING"/>
+  </global_settings>
+
+  <profiles>
+    <!--
+      线路商 Gateway 挂在 external profile 下
+      如果客户已有 external profile，只需把 <gateway> 段加进去即可
+    -->
+    <profile name="external">
+      <gateways>
+        <!--
+          carrier-outbound：对应 dialplan bridge 里的 gateway 名称
+          按实际线路商信息填写
+        -->
+        <gateway name="carrier-outbound">
+          <param name="username"       value="$${CARRIER_USERNAME}"/>
+          <param name="password"       value="$${CARRIER_PASSWORD}"/>
+          <param name="proxy"          value="$${CARRIER_HOST}"/>
+          <param name="register"       value="true"/>   <!-- 如线路商不需要注册改 false -->
+          <param name="caller-id-in-from" value="false"/>
+          <param name="codec-prefs"    value="PCMA,PCMU"/>
+          <param name="dtmf-type"      value="rfc2833"/>
+          <param name="ping"           value="30"/>     <!-- 每30秒 OPTIONS 保活 -->
+        </gateway>
+      </gateways>
+
+      <settings>
+        <param name="sip-port"  value="5060"/>
+        <param name="sip-ip"    value="$${local_ip_v4}"/>
+        <param name="rtp-ip"    value="$${local_ip_v4}"/>
+        <param name="context"   value="public"/>
+        <param name="dtmf-type" value="rfc2833"/>
+        <param name="inbound-codec-prefs"  value="PCMA,PCMU,G729"/>
+        <param name="outbound-codec-prefs" value="PCMA,PCMU,G729"/>
+      </settings>
+    </profile>
+
+    <!-- inbound-masked profile 单独文件，include 进来 -->
+    <X-PRE-PROCESS cmd="include" data="../sip_profiles/inbound-masked.xml"/>
+
+  </profiles>
+
+</configuration>

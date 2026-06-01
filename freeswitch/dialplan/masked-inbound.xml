@@ -1,0 +1,100 @@
+<!--
+  masked-inbound.xml
+  Context：处理来自外呼服务商 FreeSWITCH 的 Token 被叫呼叫
+  放置路径：/etc/freeswitch/dialplan/masked-inbound.xml
+
+  流程：
+    1. 校验被叫格式是否为 tok_xxx
+    2. 调 unmask.lua 查真实号
+    3. 查询失败 → 挂断并记录原因
+    4. 查询成功 → bridge 到线路商
+-->
+
+<include>
+  <context name="masked-inbound">
+
+    <!-- ══════════════════════════════════════════════════
+         Extension 1：Token 格式校验 + 反查 + 转发
+         ════════════════════════════════════════════════ -->
+    <extension name="unmask-and-bridge">
+      <condition field="destination_number" expression="^(tok_[a-f0-9]{32})$">
+
+        <!-- 基础通话参数 -->
+        <action application="set" data="hangup_after_bridge=true"/>
+        <action application="set" data="continue_on_fail=false"/>
+
+        <!--
+          媒体模式选择（二选一，注释掉不用的）：
+
+          模式A：bypass-media（RTP直连，不过本机）
+            优点：节省带宽和CPU，延迟低
+            缺点：无法在本机录音/质检
+        -->
+        <action application="set" data="bypass_media=true"/>
+
+        <!--
+          模式B：媒体代理（RTP过本机，默认模式）
+            优点：可录音、可质检、可做媒体处理
+            缺点：带宽和CPU消耗更高
+            启用方式：注释掉上面的 bypass_media=true 即可
+        -->
+        <!-- <action application="set" data="proxy_media=true"/> -->
+
+        <!-- 调 Lua 脚本反查 Token -->
+        <action application="lua" data="unmask.lua"/>
+
+        <!-- 查询失败：挂断 -->
+        <condition field="${unmask_error}" expression="^token_not_found$">
+          <action application="log" data="WARNING Token不存在: ${destination_number}"/>
+          <action application="hangup" data="NO_ROUTE_DESTINATION"/>
+        </condition>
+
+        <condition field="${unmask_error}" expression="^token_expired$">
+          <action application="log" data="WARNING Token已过期: ${destination_number}"/>
+          <action application="hangup" data="NO_ROUTE_DESTINATION"/>
+        </condition>
+
+        <condition field="${unmask_error}" expression="^(http_error|curl_failed.*)$">
+          <action application="log" data="ERR 映射服务不可达: ${unmask_error}"/>
+          <action application="hangup" data="SERVICE_UNAVAILABLE"/>
+        </condition>
+
+        <condition field="${unmask_error}" expression="^auth_failed$">
+          <action application="log" data="ERR GATEWAY_API_KEY 鉴权失败"/>
+          <action application="hangup" data="CALL_REJECTED"/>
+        </condition>
+
+        <!-- real_phone 为空的兜底 -->
+        <condition field="${real_phone}" expression="^$">
+          <action application="log" data="ERR real_phone为空，unmask_error=${unmask_error}"/>
+          <action application="hangup" data="NORMAL_TEMPORARY_FAILURE"/>
+        </condition>
+
+        <!--
+          Bridge 到线路商
+          your-carrier-gateway 对应 autoload_configs/sofia.conf.xml 里配置的 gateway 名称
+          也可以直接写 SIP URI：sofia/external/真实号@线路商IP:5060
+        -->
+        <action application="log" data="INFO 转接 token=${destination_number} -> ***${real_phone:(-4)}"/>
+        <action application="bridge" data="sofia/gateway/carrier-outbound/${real_phone}"/>
+
+        <!-- Bridge 失败后的处理 -->
+        <action application="log" data="WARNING Bridge失败: ${bridge_hangup_cause}"/>
+        <action application="hangup" data="${bridge_hangup_cause}"/>
+
+      </condition>
+    </extension>
+
+
+    <!-- ══════════════════════════════════════════════════
+         Extension 2：兜底（非 Token 格式的被叫）
+         ════════════════════════════════════════════════ -->
+    <extension name="invalid-destination">
+      <condition field="destination_number" expression="^.*$">
+        <action application="log" data="WARNING 收到非Token被叫: ${destination_number} from ${network_addr}"/>
+        <action application="hangup" data="UNALLOCATED_NUMBER"/>
+      </condition>
+    </extension>
+
+  </context>
+</include>

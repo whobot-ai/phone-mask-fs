@@ -1,0 +1,55 @@
+<!--
+  inbound-masked.xml
+  SIP Profile：专门接收外呼服务商 FreeSWITCH 的来电
+  放置路径：/etc/freeswitch/sip_profiles/inbound-masked.xml
+
+  说明：
+    - 独立端口 5080，与客户自身业务的 SIP profile 隔离
+    - 强制 ACL 白名单，只接受外呼服务商的 IP
+    - 所有来电进入 masked-inbound context
+-->
+
+<profile name="inbound-masked">
+  <settings>
+    <!-- 监听端口，与内部/外部 profile 隔离 -->
+    <param name="sip-port" value="5080"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+
+    <!-- 所有呼叫进入专用 context -->
+    <param name="context" value="masked-inbound"/>
+
+    <!-- IP 白名单：只接受外呼服务商的 IP -->
+    <param name="apply-inbound-acl" value="aidialer-acl"/>
+
+    <!-- SIP 域 -->
+    <param name="sip-domain" value="$${domain}"/>
+
+    <!-- 不注册，纯 inbound trunk -->
+    <param name="disable-register" value="true"/>
+
+    <!-- codec 优先级，与外呼方协商一致 -->
+    <param name="inbound-codec-prefs" value="PCMA,PCMU,G729"/>
+    <param name="outbound-codec-prefs" value="PCMA,PCMU,G729"/>
+
+    <!-- DTMF -->
+    <param name="dtmf-type" value="rfc2833"/>
+
+    <!-- 日志 -->
+    <param name="log-auth-failures" value="true"/>
+    <param name="log-into-db" value="false"/>
+
+    <!-- NAT 处理（如果外呼方在 NAT 后面，打开此项） -->
+    <!-- <param name="aggressive-nat-detection" value="true"/> -->
+
+    <!-- 关闭不需要的功能，减少攻击面 -->
+    <param name="accept-blind-reg" value="false"/>
+    <param name="accept-blind-auth" value="false"/>
+    <param name="auth-calls" value="false"/>   <!-- 通过 ACL 鉴权，不做 SIP auth -->
+
+    <param name="enable-timer" value="false"/>
+    <param name="minimum-session-expires" value="120"/>
+  </settings>
+
+  <!-- 不需要 gateway，纯收话 profile -->
+</profile>
